@@ -13,18 +13,16 @@
     'use strict';
 
     // ─── SETTINGS ────────────────────────────────────────────────────────────────
-    // Voting mode:
+    // Monitoring mode:
     //   "LOOK_BY_NUMBER_OF_POLL_OPTION" — vote by position (1, 2, 3)
     //   "LOOK_BY_NAME_OF_POLL_OPTION"   — vote by the exact text of the option
     const MONITORING_MODE = "LOOK_BY_NUMBER_OF_POLL_OPTION";
     // used in LOOK_BY_NUMBER_OF_POLL_OPTION mode
     const ANSWER_INDEX = 1;
     // used in LOOK_BY_NAME_OF_POLL_OPTION mode (case-insensitive)
-    const ANSWER_NAME = "Рева берёт уроки читерства у Кирчика";
+    const ANSWER_NAME = "12:00 - 14:00";
     // How often (ms) to scan for a new unvoted poll
     const POLL_INTERVAL_MS = 100;
-    // Delay (ms) after page load before the script starts monitoring
-    const STARTUP_DELAY_MS = 3000;
     // How long (minutes) to keep monitoring after Ctrl+/ is pressed
     const MONITORING_DURATION_MIN = 10;
     const DEBUG = false;
@@ -270,7 +268,7 @@
                         console.log(ts(), `[VoteMonitoringBot] Monitoring stopped after ${MONITORING_DURATION_MIN} min.`);
                         showToast(`⏹ VoteMonitoringBot: Monitoring stopped after ${MONITORING_DURATION_MIN} min.`, 7000);
                     }, MONITORING_DURATION_MIN * 60 * 1000);
-                }, STARTUP_DELAY_MS);
+                }, 3000);
             }
         });
     }
