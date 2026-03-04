@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gitlab_Yaypay
 // @namespace    http://tampermonkey.net/
-// @version      7
+// @version      8
 // @description  Automatically clicks the "Expand jobs" button and scrolls to "deploy_yp02"
 // @author       yevgeniy.movsesov@gmail.com
 // @match        *://*.gitlab.yaypay.com/*
