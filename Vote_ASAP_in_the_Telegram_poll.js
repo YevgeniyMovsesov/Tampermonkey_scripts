@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vote ASAP in the Telegram poll
 // @namespace    http://tampermonkey.net/
-// @version      27
+// @version      28
 // @description  Monitors a specific Telegram channel and automatically votes in new polls
 // @author       yevgeniy.movsesov@gmail.com
 // @match        https://web.telegram.org/*
@@ -15,8 +15,8 @@
     // ─── SETTINGS ────────────────────────────────────────────────────────────────
     // Trigger mode — when the script should start monitoring:
     //   "HOTKEY" — wait for Ctrl+/ to be pressed (current behaviour)
-    //   "AUTO"   — start monitoring immediately when the page loads
-    const TRIGGER_MODE = "AUTO";
+    //   "INSTANTLY"   — start monitoring immediately when the page loads
+    const TRIGGER_MODE = "INSTANTLY";
     // Monitoring mode:
     //   "LOOK_BY_NUMBER_OF_POLL_OPTION" — vote by position (1, 2, 3)
     //   "LOOK_BY_NAME_OF_POLL_OPTION"   — vote by the exact text of the option
@@ -416,10 +416,10 @@
         });
     }
 
-    // ── Auto-start (if TRIGGER_MODE is "AUTO") ────────────────────────────────────
-    if (TRIGGER_MODE === "AUTO") {
-        console.log(ts(), '[VoteMonitoringBot] TRIGGER_MODE=AUTO — starting monitoring automatically.');
-        startMonitoring('AUTO');
+    // ── Auto-start (if TRIGGER_MODE is "INSTANTLY") ────────────────────────────────────
+    if (TRIGGER_MODE === "INSTANTLY") {
+        console.log(ts(), '[VoteMonitoringBot] TRIGGER_MODE=INSTANTLY — starting monitoring automatically.');
+        startMonitoring('INSTANTLY');
     } else {
         console.log(ts(), '[VoteMonitoringBot] TRIGGER_MODE=HOTKEY — press "Ctrl+/" to start monitoring.');
     }
