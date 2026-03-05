@@ -22,7 +22,7 @@
     //   "LOOK_BY_NAME_OF_POLL_OPTION"   — vote by the exact text of the option
     const MONITORING_MODE = "LOOK_BY_NUMBER_OF_POLL_OPTION";
     // used in LOOK_BY_NUMBER_OF_POLL_OPTION mode
-    const ANSWER_INDEX = 2;
+    const ANSWER_INDEX = 1;
     // used in LOOK_BY_NAME_OF_POLL_OPTION mode (case-insensitive)
     const ANSWER_NAME = "12:00 - 14:00";
     // How often (ms) to scan for a new unvoted poll
