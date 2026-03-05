@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vote ASAP in the Telegram poll
 // @namespace    http://tampermonkey.net/
-// @version      22
+// @version      27
 // @description  Monitors a specific Telegram channel and automatically votes in new polls
 // @author       yevgeniy.movsesov@gmail.com
 // @match        https://web.telegram.org/*
@@ -22,7 +22,7 @@
     //   "LOOK_BY_NAME_OF_POLL_OPTION"   — vote by the exact text of the option
     const MONITORING_MODE = "LOOK_BY_NUMBER_OF_POLL_OPTION";
     // used in LOOK_BY_NUMBER_OF_POLL_OPTION mode
-    const ANSWER_INDEX = 1;
+    const ANSWER_INDEX = 2;
     // used in LOOK_BY_NAME_OF_POLL_OPTION mode (case-insensitive)
     const ANSWER_NAME = "12:00 - 14:00";
     // How often (ms) to scan for a new unvoted poll
@@ -201,14 +201,28 @@
         return null;
     }
 
+    /** Find individual answer elements inside a .poll-answers container. */
+    function webK_getAnswerElements(pollAnswers) {
+        // Telegram WebK: answers are <label class="Radio"> inside a .radio-group
+        let answers = Array.from(pollAnswers.querySelectorAll('label.Radio'));
+        if (answers.length === 0) {
+            answers = Array.from(pollAnswers.querySelectorAll('.poll-answer'));
+        }
+        if (answers.length === 0) {
+            answers = Array.from(pollAnswers.children);
+        }
+        return answers;
+    }
+
     function webK_voteInPoll(pollAnswers) {
-        const answers = Array.from(pollAnswers.children);
+        const answers = webK_getAnswerElements(pollAnswers);
         if (answers.length < ANSWER_INDEX) return false;
 
         const answerEl = answers[ANSWER_INDEX - 1];
-        const clickTarget = answerEl.querySelector('label, button, input[type="radio"], [role="button"], [role="radio"]') || answerEl;
+        const clickTarget = answerEl.querySelector('input[type="radio"]') || answerEl;
+        const labelEl = answerEl.querySelector('span.label, .Radio-main');
+        const label = (labelEl || answerEl).textContent.trim().slice(0, 60);
 
-        const label = answerEl.textContent.trim().slice(0, 60);
         console.log(ts(), `[VoteMonitoringBot] (WebK) ✅ Clicking answer #${ANSWER_INDEX}: "${label}"`);
         clickTarget.click();
         webK_votedPolls.add(webK_getPollId(pollAnswers));
@@ -216,18 +230,21 @@
     }
 
     function webK_voteInPollByName(pollAnswers) {
-        const answers = Array.from(pollAnswers.children);
+        const answers = webK_getAnswerElements(pollAnswers);
         let clickTarget = null;
+        let matchedText = '';
         for (const answerEl of answers) {
-            const text = answerEl.textContent.trim();
+            const labelEl = answerEl.querySelector('span.label, .Radio-main');
+            const text = (labelEl || answerEl).textContent.trim();
             if (text.toLowerCase() === ANSWER_NAME.toLowerCase()) {
-                clickTarget = answerEl.querySelector('label, button, input[type="radio"], [role="button"], [role="radio"]') || answerEl;
+                clickTarget = answerEl.querySelector('input[type="radio"]') || answerEl;
+                matchedText = text;
                 break;
             }
         }
         if (!clickTarget) return false;
 
-        console.log(ts(), `[VoteMonitoringBot] (WebK) ✅ Clicking answer "${ANSWER_NAME}"`);
+        console.log(ts(), `[VoteMonitoringBot] (WebK) ✅ Clicking answer "${matchedText}"`);
         clickTarget.click();
         webK_votedPolls.add(webK_getPollId(pollAnswers));
         return true;
@@ -318,17 +335,28 @@
         // Try WebK logic first (Telegram Web K)
         const pollK = webK_findNewUnvotedPoll();
         if (pollK) {
-            if (MONITORING_MODE === "LOOK_BY_NAME_OF_POLL_OPTION") webK_voteInPollByName(pollK);
-            else webK_voteInPoll(pollK);
-            return;
+            let voted;
+            if (MONITORING_MODE === "LOOK_BY_NAME_OF_POLL_OPTION") voted = webK_voteInPollByName(pollK);
+            else voted = webK_voteInPoll(pollK);
+            if (voted) return;
+            // WebK found a poll but couldn't vote — dump structure once and try WebA
+            if (!window._webK_dumpDone) {
+                window._webK_dumpDone = true;
+                console.warn(ts(), '[VoteMonitoringBot] (WebK) ⚠ Found poll but could not vote. Poll HTML:\n', pollK.innerHTML);
+            }
         }
 
         // Fallback to WebA logic (Telegram Web A)
         const pollA = webA_findNewUnvotedPoll();
         if (pollA) {
-            if (MONITORING_MODE === "LOOK_BY_NAME_OF_POLL_OPTION") webA_voteInPollByName(pollA);
-            else webA_voteInPoll(pollA);
-            return;
+            let voted;
+            if (MONITORING_MODE === "LOOK_BY_NAME_OF_POLL_OPTION") voted = webA_voteInPollByName(pollA);
+            else voted = webA_voteInPoll(pollA);
+            if (voted) return;
+            if (!window._webA_dumpDone) {
+                window._webA_dumpDone = true;
+                console.warn(ts(), '[VoteMonitoringBot] (WebA) ⚠ Found poll but could not vote. Poll HTML:\n', pollA.innerHTML);
+            }
         }
     }
 
@@ -342,7 +370,10 @@
 
         window._voteBotStarted = true;
         console.log(ts(), `[VoteMonitoringBot] Now monitoring for ${MONITORING_DURATION_MIN} min. (trigger: ${triggerLabel})`);
-        showToast(`VoteMonitoringBot: Monitoring for ${MONITORING_DURATION_MIN} min. (trigger: ${triggerLabel})`, 7000);
+        const endTime = new Date(Date.now() + MONITORING_DURATION_MIN * 60 * 1000);
+        const endHH = String(endTime.getHours()).padStart(2, '0');
+        const endMM = String(endTime.getMinutes()).padStart(2, '0');
+        showToast(`VoteMonitoringBot: Monitoring for ${MONITORING_DURATION_MIN} min. until ${endHH}:${endMM} (trigger: ${triggerLabel})`, MONITORING_DURATION_MIN * 60 * 1000);
 
         if (DEBUG) webK_debugDumpDom();
 
