@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vote ASAP in the Telegram poll
 // @namespace    http://tampermonkey.net/
-// @version      28
+// @version      29
 // @description  Monitors a specific Telegram channel and automatically votes in new polls
 // @author       yevgeniy.movsesov@gmail.com
 // @match        https://web.telegram.org/*
@@ -21,10 +21,11 @@
     //   "LOOK_BY_NUMBER_OF_POLL_OPTION" — vote by position (1, 2, 3)
     //   "LOOK_BY_NAME_OF_POLL_OPTION"   — vote by the exact text of the option
     const MONITORING_MODE = "LOOK_BY_NUMBER_OF_POLL_OPTION";
-    // used in LOOK_BY_NUMBER_OF_POLL_OPTION mode
     const ANSWER_INDEX = 1;
-    // used in LOOK_BY_NAME_OF_POLL_OPTION mode (case-insensitive)
-    const ANSWER_NAME = "12:00 - 14:00";
+
+    // const MONITORING_MODE = "LOOK_BY_NAME_OF_POLL_OPTION";
+    // const ANSWER_NAME = "12:00 - 14:00";
+
     // How often (ms) to scan for a new unvoted poll
     const POLL_INTERVAL_MS = 100;
     // How long (minutes) to keep monitoring after start
