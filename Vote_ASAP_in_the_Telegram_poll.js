@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Vote ASAP in the Telegram poll
 // @namespace    http://tampermonkey.net/
-// @version      21
+// @version      22
 // @description  Monitors a specific Telegram channel and automatically votes in new polls
 // @author       yevgeniy.movsesov@gmail.com
 // @match        https://web.telegram.org/*
@@ -13,6 +13,10 @@
     'use strict';
 
     // ─── SETTINGS ────────────────────────────────────────────────────────────────
+    // Trigger mode — when the script should start monitoring:
+    //   "HOTKEY" — wait for Ctrl+/ to be pressed (current behaviour)
+    //   "AUTO"   — start monitoring immediately when the page loads
+    const TRIGGER_MODE = "AUTO";
     // Monitoring mode:
     //   "LOOK_BY_NUMBER_OF_POLL_OPTION" — vote by position (1, 2, 3)
     //   "LOOK_BY_NAME_OF_POLL_OPTION"   — vote by the exact text of the option
@@ -23,9 +27,9 @@
     const ANSWER_NAME = "12:00 - 14:00";
     // How often (ms) to scan for a new unvoted poll
     const POLL_INTERVAL_MS = 100;
-    // How long (minutes) to keep monitoring after Ctrl+/ is pressed
+    // How long (minutes) to keep monitoring after start
     const MONITORING_DURATION_MIN = 10;
-    // Delay (ms) after Ctrl+/ before starting scan loop (useful for UI settling)
+    // Delay (ms) before starting scan loop (useful for UI settling)
     const STARTUP_DELAY_MS = 1000;
     const DEBUG = true;
     // ─────────────────────────────────────────────────────────────────────────────
@@ -307,7 +311,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
-    // ══  SHARED: keyboard trigger & main loop  ════════════════════════════════════
+    // ══  SHARED: trigger & main loop  ══════════════════════════════════════════════
     // ═══════════════════════════════════════════════════════════════════════════════
 
     function tick() {
@@ -328,6 +332,37 @@
         }
     }
 
+    /** Shared logic: initialises seen-polls, starts the scan loop, schedules auto-stop. */
+    function startMonitoring(triggerLabel) {
+        if (window._voteBotStarted) {
+            console.log(ts(), `[VoteMonitoringBot] Monitoring already running — ignoring ${triggerLabel}`);
+            showToast(`⚡ VoteMonitoringBot: Monitoring already running — ignoring ${triggerLabel}`);
+            return;
+        }
+
+        window._voteBotStarted = true;
+        console.log(ts(), `[VoteMonitoringBot] Now monitoring for ${MONITORING_DURATION_MIN} min. (trigger: ${triggerLabel})`);
+        showToast(`VoteMonitoringBot: Monitoring for ${MONITORING_DURATION_MIN} min. (trigger: ${triggerLabel})`, 7000);
+
+        if (DEBUG) webK_debugDumpDom();
+
+        // Wait a tiny bit (STARTUP_DELAY_MS) in case the page needs to populate
+        setTimeout(() => {
+            webK_initSeenPolls();
+            webA_initSeenPolls();
+
+            const intervalId = setInterval(tick, POLL_INTERVAL_MS);
+
+            setTimeout(() => {
+                clearInterval(intervalId);
+                window._voteBotStarted = false;
+                console.log(ts(), `[VoteMonitoringBot] Monitoring stopped after ${MONITORING_DURATION_MIN} min.`);
+                showToast(`⏹ VoteMonitoringBot: Monitoring stopped after ${MONITORING_DURATION_MIN} min.`, 7000);
+            }, MONITORING_DURATION_MIN * 60 * 1000);
+        }, STARTUP_DELAY_MS);
+    }
+
+    // ── Keyboard trigger (always registered so Ctrl+/ works in any mode) ──────────
     if (window._voteBotStarted === undefined) window._voteBotStarted = false;
 
     if (!window._voteBotListenerAdded) {
@@ -345,38 +380,22 @@
                 if (now - (window._voteBotLastTrigger || 0) < 500) return;
                 window._voteBotLastTrigger = now;
 
-                if (window._voteBotStarted) {
-                    console.log(ts(), '[VoteMonitoringBot] Monitoring already running — ignoring Ctrl+/');
-                    showToast('⚡ VoteMonitoringBot: Monitoring already running — ignoring Ctrl+/');
-                    return;
-                }
-
-                window._voteBotStarted = true;
-                console.log(ts(), `[VoteMonitoringBot] Now monitoring during ${MONITORING_DURATION_MIN} min.`);
-                showToast(`VoteMonitoringBot: Monitoring for ${MONITORING_DURATION_MIN} min. (Supports WebA & WebK)`, 7000);
-
-                if (DEBUG) webK_debugDumpDom();
-
-                // Wait a tiny bit (STARTUP_DELAY_MS) in case the page needs to populate
-                setTimeout(() => {
-                    webK_initSeenPolls();
-                    webA_initSeenPolls();
-
-                    const intervalId = setInterval(tick, POLL_INTERVAL_MS);
-
-                    setTimeout(() => {
-                        clearInterval(intervalId);
-                        window._voteBotStarted = false;
-                        console.log(ts(), `[VoteMonitoringBot] Monitoring stopped after ${MONITORING_DURATION_MIN} min.`);
-                        showToast(`⏹ VoteMonitoringBot: Monitoring stopped after ${MONITORING_DURATION_MIN} min.`, 7000);
-                    }, MONITORING_DURATION_MIN * 60 * 1000);
-                }, STARTUP_DELAY_MS);
+                startMonitoring('Ctrl+/');
             }
         });
     }
 
-    console.log(ts(), '[VoteMonitoringBot] Script loaded. Press "Ctrl+/" to start monitoring. Supports multiple Telegram structural versions.');
-    console.log(ts(), '[VoteMonitoringBot] Mode:', MONITORING_MODE,
+    // ── Auto-start (if TRIGGER_MODE is "AUTO") ────────────────────────────────────
+    if (TRIGGER_MODE === "AUTO") {
+        console.log(ts(), '[VoteMonitoringBot] TRIGGER_MODE=AUTO — starting monitoring automatically.');
+        startMonitoring('AUTO');
+    } else {
+        console.log(ts(), '[VoteMonitoringBot] TRIGGER_MODE=HOTKEY — press "Ctrl+/" to start monitoring.');
+    }
+
+    console.log(ts(), '[VoteMonitoringBot] Script loaded. Supports multiple Telegram structural versions.');
+    console.log(ts(), '[VoteMonitoringBot] Trigger:', TRIGGER_MODE,
+        '| Mode:', MONITORING_MODE,
         '| Answer index:', ANSWER_INDEX, '| Answer name:', ANSWER_NAME,
         '| Scan interval:', POLL_INTERVAL_MS, 'ms');
 
